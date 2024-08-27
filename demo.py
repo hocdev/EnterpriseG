@@ -1,4 +1,5 @@
 import os
+import requests
 import shutil
 import configparser
 import subprocess
@@ -107,7 +108,7 @@ def main():
 
         if choice == '1':
             buoc1()
-            buoc3()
+            # buoc3()
             input("Press Enter to continue...")
             break
         elif choice == '2':
@@ -128,7 +129,22 @@ def buoc1():
     print(f" Thông tin bản build: \033[91m{build_info}\033[0m")
     sxs_path = f"libs\\esd\\{'win10' if build_info == '19041' else 'win11'}\\{'x64' if architecture_info == 'x86_64' else 'x86'}"
     language_pack_file = f"Microsoft-Windows-Client-LanguagePack-Package{'-amd64' if architecture_info == 'x86_64' else ''}-en-us.esd"
-    
+
+    if not os.path.exists(f"{sxs_path}\\sxs.wim"):
+        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/sxs.wim" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/sxs.wim"
+        if not download_file(url, f"{sxs_path}\\sxs.wim"):
+            return False
+            
+    if not os.path.exists(f"{sxs_path}\\{language_pack_file}"):
+        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd"
+        if not download_file(url, f"{sxs_path}\\{language_pack_file}"):
+            return False
+            
+    if not os.path.exists(f"{sxs_path}\\Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"):
+        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"
+        if not download_file(url, f"{sxs_path}\\Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"):
+            return False
+
     if not run_wimlib_imagex(f"{sxs_path}\\sxs.wim", "libs\\sxs"):
         return False
     if not run_wimlib_imagex(f"{sxs_path}\\{language_pack_file}", "libs\\lp"):
@@ -230,11 +246,10 @@ def buoc3():
     run_dism_unmount(mount_dir)
     print(" =============================================================================================")
     run_wimlib_imagex("install.wim", "optimize")
-    # print(" =============================================================================================")
-    # operation1 = '1 --image-property NAME="" --image-property DESCRIPTION="" --image-property DISPLAYNAME="" --image-property DISPLAYDESCRIPTION=""  --image-property WINDOWS/EDITIONID="" --image-property FLAGS=""'
-    # run_wimlib_imagex("install.wim", "info", operation1)
     print(" =============================================================================================")
-    # operation2 = '1 --image-property NAME="Windows 10 Enterprise G" --image-property DESCRIPTION="Windows 10 Enterprise G" --image-property DISPLAYNAME="Windows 10 Enterprise G" --image-property DISPLAYDESCRIPTION="Windows 10 Enterprise G"  --image-property WINDOWS/EDITIONID="EnterpriseG" --image-property FLAGS="EnterpriseG"'
+    operation1 = '1 --image-property NAME="" --image-property DESCRIPTION="" --image-property DISPLAYNAME="" --image-property DISPLAYDESCRIPTION=""  --image-property WINDOWS/EDITIONID="" --image-property FLAGS=""'
+    run_wimlib_imagex("install.wim", "info", operation1)
+    print(" =============================================================================================")
     operation2 = f'1 --image-property NAME="Windows {"10" if build_info == "19041" else "11"} Enterprise G" --image-property DESCRIPTION="Windows {"10" if build_info == "19041" else "11"} Enterprise G" --image-property DISPLAYNAME="Windows {"10" if build_info == "19041" else "11"} Enterprise G" --image-property DISPLAYDESCRIPTION="Windows {"10" if build_info == "19041" else "11"} Enterprise G" --image-property WINDOWS/EDITIONID="EnterpriseG" --image-property FLAGS="EnterpriseG"'
     run_wimlib_imagex("install.wim", "info", operation2)
     shutil.rmtree(r'libs\lp')
@@ -261,7 +276,19 @@ def extract_with_progress(filename, current_directory):
     command = f'bin\\7z e "{filename}" "sources/install.wim" -o"{current_directory}" -bso0 -y'
     subprocess.run(command, shell=True)
     print(f" {filename} đã giải nén thành công\n")
-    
+ 
+def download_file(url, destination):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        with open(destination, 'wb') as file:
+            file.write(response.content)
+        print(f" Downloaded file from {url}")
+    except requests.RequestException as e:
+        print(f" Failed to download file from {url}. Error: {e}")
+        return False
+    return True
+
 def run_wimlib_imagex(image_file, operation, operation_params=None, info_type=None):
     try:
         image_filename = os.path.basename(image_file)
