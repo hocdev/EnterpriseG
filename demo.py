@@ -1,3 +1,4 @@
+import base64
 import os
 import requests
 import shutil
@@ -108,7 +109,7 @@ def main():
 
         if choice == '1':
             buoc1()
-            # buoc3()
+            buoc3()
             input("Press Enter to continue...")
             break
         elif choice == '2':
@@ -127,21 +128,22 @@ def buoc1():
     clear_screen()
     print(" =============================================================================================")
     print(f" Thông tin bản build: \033[91m{build_info}\033[0m")
+    print(" =============================================================================================")
     sxs_path = f"libs\\esd\\{'win10' if build_info == '19041' else 'win11'}\\{'x64' if architecture_info == 'x86_64' else 'x86'}"
     language_pack_file = f"Microsoft-Windows-Client-LanguagePack-Package{'-amd64' if architecture_info == 'x86_64' else ''}-en-us.esd"
 
     if not os.path.exists(f"{sxs_path}\\sxs.wim"):
-        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/sxs.wim" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/sxs.wim"
+        url = encode_url(f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/sxs.wim") if build_info == '19041' else encode_url("https://github.com/hocdev/EnterpriseG/releases/download/win11/sxs.wim")
         if not download_file(url, f"{sxs_path}\\sxs.wim"):
             return False
             
     if not os.path.exists(f"{sxs_path}\\{language_pack_file}"):
-        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd"
+        url = encode_url(f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd") if build_info == '19041' else encode_url("https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-Client-LanguagePack-Package-amd64-en-us.esd")
         if not download_file(url, f"{sxs_path}\\{language_pack_file}"):
             return False
             
     if not os.path.exists(f"{sxs_path}\\Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"):
-        url = f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd" if build_info == '19041' else "https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"
+        url = encode_url(f"https://github.com/hocdev/EnterpriseG/releases/download/{'x64' if architecture_info == 'x86_64' else 'x86'}/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd") if build_info == '19041' else encode_url("https://github.com/hocdev/EnterpriseG/releases/download/win11/Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd")
         if not download_file(url, f"{sxs_path}\\Microsoft-Windows-EditionSpecific-EnterpriseG-Package.esd"):
             return False
 
@@ -153,7 +155,7 @@ def buoc1():
         return False
     
     print(" =============================================================================================")
-    print(f" \033[92minstall.wim\033[0m đang được mount...")
+    print(f" \033[92minstall.wim\033[0m đang mount...")
     index = 1
     if not run_dism_mount(wim_file, index, mount_dir):
         return False
@@ -276,14 +278,21 @@ def extract_with_progress(filename, current_directory):
     command = f'bin\\7z e "{filename}" "sources/install.wim" -o"{current_directory}" -bso0 -y'
     subprocess.run(command, shell=True)
     print(f" {filename} đã giải nén thành công\n")
+
+def encode_url(url):
+    return base64.b64encode(url.encode()).decode()
+
+def decode_url(encoded_url):
+    return base64.b64decode(encoded_url.encode()).decode()
  
-def download_file(url, destination):
+def download_file(encoded_url, destination):
+    url = decode_url(encoded_url)
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        response.raise_for_status()
         with open(destination, 'wb') as file:
             file.write(response.content)
-        print(f" Downloaded file from {url}")
+        print(f" Downloaded file: \033[91m{os.path.basename(destination)}\033[0m")
     except requests.RequestException as e:
         print(f" Failed to download file from {url}. Error: {e}")
         return False
@@ -307,10 +316,10 @@ def run_wimlib_imagex(image_file, operation, operation_params=None, info_type=No
         result = subprocess.run(full_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         if operation == "optimize":
-            print(f" \033[92m{image_filename}\033[0m đã được optimize thành công")
+            print(f" \033[92m{image_filename}\033[0m đã optimize thành công")
         elif operation == "info":
             if operation_params:
-                print(f" \033[92m{image_filename}\033[0m đã được info thành công")
+                print(f" \033[92m{image_filename}\033[0m đã info thành công")
             else:
                 output = result.stdout
                 if info_type == "architecture":
@@ -322,7 +331,7 @@ def run_wimlib_imagex(image_file, operation, operation_params=None, info_type=No
                 else:
                     return "Loại thông tin không hợp lệ"
         else:
-            print(f" \033[92m{image_filename}\033[0m đã được thực thi thành công")
+            print(f" \033[92m{image_filename}\033[0m đã thực thi thành công")
         
         return True
     except subprocess.CalledProcessError as e:
@@ -336,7 +345,7 @@ def run_dism_mount(wim_file, index, mount_dir):
     try:
         full_command = f"dism /mount-wim /wimfile:\"{wim_file}\" /index:{index} /mountdir:\"{mount_dir}\""
         subprocess.run(full_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print(f" \033[92m{os.path.basename(wim_file)}\033[0m đã được mount thành công")
+        print(f" \033[92m{os.path.basename(wim_file)}\033[0m đã mount thành công")
         return True
     except subprocess.CalledProcessError as e:
         print(f" \033[91mLỗi khi thực thi lệnh: {e}\033[0m")
@@ -384,7 +393,7 @@ def run_dism_update(mount_dir, temp_dir):
         for file_name in lcu_files:
             full_command = f"dism /image:{mount_dir} /add-package:{os.path.join(lcu_dir, file_name)} /scratchdir:{temp_dir}"
             subprocess.run(full_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            print(f" \033[92m{file_name}\033[0m đã được thêm thành công")
+            print(f" \033[92m{file_name}\033[0m đã thêm thành công")
 
         return True
     except subprocess.CalledProcessError as e:
@@ -398,7 +407,7 @@ def run_dism_resetbase(mount_dir):
     try:
         full_command = f"dism /image:\"{mount_dir}\" /Cleanup-Image /StartComponentCleanup /ResetBase"
         subprocess.run(full_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print(f" \033[92m{mount_dir}\033[0m đã được resetbase thành công")
+        print(f" \033[92m{mount_dir}\033[0m đã resetbase thành công")
         return True
     except subprocess.CalledProcessError as e:
         print(f" \033[91mLỗi khi thực thi lệnh: {e}\033[0m")
@@ -423,7 +432,7 @@ def run_dism_scratchdir(mount_dir, temp_dir, action, parameter=None):
         elif action == "remove-provisionedappxpackage":
             command = f"dism /scratchdir:{temp_dir} /image:{mount_dir} /remove-provisionedappxpackage /packagename:{parameter}"
         else:
-            raise ValueError("Hành động không được hỗ trợ")
+            raise ValueError("Hành động không hỗ trợ")
 
         result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
 
